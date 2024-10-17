@@ -34,7 +34,7 @@ async def handle_file(update: Update, context: CallbackContext) -> None:
         # Download the file from Telegram
         file_id = file.file_id
         new_file = await context.bot.get_file(file_id)
-        file_path = new_file.download_to_drive()
+        file_path = await new_file.download_to_drive()  # Await the download and get the file path
 
         # Upload to KrakenFiles
         kraken_link = upload_to_krakenfiles(file_path)

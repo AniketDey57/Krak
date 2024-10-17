@@ -1,14 +1,14 @@
 import os
 import requests
 from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 
-# Replace with your KrakenFiles API URL and Bot Token
+# Replace with your KrakenFiles API URL and Telegram Bot Token
 KRAKEN_API_URL = 'https://krakenfiles.com/api/v2/file/upload'
 TELEGRAM_BOT_TOKEN = '5707293090:AAHGLlHSx101F8T1DQYdcb9_MkRAjyCbt70'
 
-def start(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text('Hello! Send me a file and I will upload it to KrakenFiles.')
+async def start(update: Update, context: CallbackContext) -> None:
+    await update.message.reply_text('Hello! Send me a file and I will upload it to KrakenFiles.')
 
 def upload_to_krakenfiles(file_path):
     # Prepare file upload
@@ -27,14 +27,14 @@ def upload_to_krakenfiles(file_path):
             print(f"Error uploading to KrakenFiles: {e}")
             return None
 
-def handle_file(update: Update, context: CallbackContext) -> None:
+async def handle_file(update: Update, context: CallbackContext) -> None:
     file = update.message.document or update.message.photo[-1] if update.message.photo else None
 
     if file:
         # Download the file from Telegram
         file_id = file.file_id
-        new_file = context.bot.get_file(file_id)
-        file_path = new_file.download()
+        new_file = await context.bot.get_file(file_id)
+        file_path = new_file.download_to_drive()
 
         # Upload to KrakenFiles
         kraken_link = upload_to_krakenfiles(file_path)
@@ -43,22 +43,24 @@ def handle_file(update: Update, context: CallbackContext) -> None:
         os.remove(file_path)
 
         if kraken_link:
-            update.message.reply_text(f'File uploaded successfully! Here is your link: {kraken_link}')
+            await update.message.reply_text(f'File uploaded successfully! Here is your link: {kraken_link}')
         else:
-            update.message.reply_text('Failed to upload file to KrakenFiles.')
+            await update.message.reply_text('Failed to upload file to KrakenFiles.')
     else:
-        update.message.reply_text('Please send a valid file.')
+        await update.message.reply_text('Please send a valid file.')
 
 def main():
-    updater = Updater(TELEGRAM_BOT_TOKEN, use_context=True)
+    # Create the application and pass the bot token
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
-    # Add handlers
-    updater.dispatcher.add_handler(CommandHandler("start", start))
-    updater.dispatcher.add_handler(MessageHandler(Filters.document | Filters.photo, handle_file))
+    # Add command handler for "/start"
+    application.add_handler(CommandHandler("start", start))
+
+    # Add file handler for document and photo messages
+    application.add_handler(MessageHandler(filters.Document.ALL | filters.PHOTO, handle_file))
 
     # Start the Bot
-    updater.start_polling()
-    updater.idle()
+    application.run_polling()
 
 if __name__ == '__main__':
     main()
